@@ -1,23 +1,41 @@
 import requests
-import schedule
 from time import sleep
 import datetime
 import timeit
 # we may need proxy rotation at some point when the apiCalls/minute will increase
 
+session = requests.Session()
+
+url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+
+originalURL = "https://www.nseindia.com/option-chain"
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+    "DNT": "1",
+}
+
+request = session.get(originalURL, headers=headers, timeout=5)
+
+cookies = dict(request.cookies)
+
 
 def extract():
 
-    url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+    global session, cookies
+    response = requests.get(url, headers=headers, cookies=cookies, timeout=25)
+    print(response.status_code)
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-        "Referer": "https://www.google.com",
-        "DNT": "1",
-    }
+    if response.status_code == 401:
+        session.close()
+        session = requests.Session()
 
-    response = requests.get(url, headers=headers, timeout=25)
+        request = session.get(originalURL, headers=headers, timeout=5)
+        cookies = dict(request.cookies)
+        response = requests.get(url, headers=headers,
+                                cookies=cookies, timeout=25)
+        print("cookie reset")
 
     result = response.json()
     timeStamp = result["records"]["timestamp"]
@@ -30,7 +48,7 @@ def extract():
 
 totalTime = 0
 while(totalTime <= 25200):  # 25200 secs = 7 hours
-    waitTime = 60
+    waitTime = 7
     extract()
     totalTime += waitTime
     sleep(waitTime)
